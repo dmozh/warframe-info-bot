@@ -1,4 +1,8 @@
 .idea/
 .logs/
-.bot-module/logs/
-.grabber-module/logs/
+test.py
+/bot-module/logs/
+/grabber-module/logs/
+/bot-module/__pycache__/
+/grabber-module/__pycache__/
+/logs/
