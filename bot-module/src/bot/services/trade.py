@@ -5,8 +5,8 @@ class TradeService:
     __items = []
     __pages = 0
 
-    def __init__(self):
-        pass
+    def __init__(self, ctx):
+        self.ctx = ctx
 
     def __get_items(self, msg: str):
         """
