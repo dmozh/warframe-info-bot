@@ -37,16 +37,16 @@ def log(prefix_msg: str, msg: str, log_coro: bool = False, **params):
             @wraps(func)
             async def _logging(*args, **kwargs):
                 try:
-                    await func(*args, **kwargs)
                     info_logger.info(log)
+                    return await func(*args, **kwargs)
                 except Exception as e:
                     _log = f"{log}\n {e}"
                     traceback_logger.error(_log)
         else:
             def _logging(*args, **kwargs):
                 try:
-                    func(*args, **kwargs)
                     info_logger.info(log)
+                    return func(*args, **kwargs)
                 except Exception as e:
                     _log = f"{log}\n {e}"
                     traceback_logger.error(_log)

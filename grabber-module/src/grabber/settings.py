@@ -4,8 +4,8 @@ class Settings:
     static_url = "https://warframe.market/static/assets/"
     headers = {"Language": "ru"}
 
-    REDIS_HOST = ''
-    REDIS_PORT = ''
+    REDIS_HOST = 'localhost'
+    REDIS_PORT = 6379
 
     def __init__(self):
         pass
@@ -14,7 +14,7 @@ class Settings:
                      url: str = None,
                      static_url: str = None,
                      headers: dict = None,
-                     redis_port: str = None,
+                     redis_port: int = None,
                      redis_host: str = None):
         if url:
             self.url = url
