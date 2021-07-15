@@ -13,5 +13,4 @@ async def hello(ctx):
 
 @commands.command()
 async def pic(ctx):
-
-    await ctx.send(f'hi :100:')#, embed=embed)  # Отправляем Embed
+    await ctx.send(f'hi :100:')  # , embed=embed)  # Отправляем Embed

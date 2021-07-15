@@ -33,3 +33,6 @@ class TradeService:
         else:
             msg += "```"
         return msg
+
+    def __del__(self):
+        """"""
