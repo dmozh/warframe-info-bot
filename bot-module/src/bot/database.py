@@ -1,5 +1,5 @@
 import redis
-from grabber.settings import Settings
+from bot.settings import Settings
 from logger import log
 
 __redis_client = redis.Redis(Settings.REDIS_HOST, Settings.REDIS_PORT)
