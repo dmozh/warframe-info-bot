@@ -1,6 +1,8 @@
 from logger import log
 from ..services.trade import TradeService
 from discord.ext import commands
+from discord.member import Member
+
 
 # from ..dialogs import Dialog, DIALOGS
 
@@ -13,19 +15,31 @@ class Trade(commands.Cog, name="Trade"):
 
     @commands.command()
     @log(f"{__name__}", "find items", log_coro=True)
-    async def find(self, ctx, item):
+    async def find(self, ctx, *items):
         """
         Find items
-        :param item:
-        :param ctx:
-        :return:
+        enter command with one or more items separated by a space
+        Example: $find парные a1 Мираж
+        :param items: tuple
         """
-        service = TradeService(ctx)
-
-        msg = service.gen_msg(item.lower())
-        o = await ctx.send(f"{msg}")
-        await o.add_reaction("🔒")
+        # print(items)
+        if not str(ctx.message.author) in services:
+            service = TradeService(ctx)
+            services[str(ctx.message.author)] = service
+        else:
+            service = services[str(ctx.message.author)]
+        msg = await ctx.send(f"{service.gen_msg(items=items)}")
+        await service.add_reactions(msg)
+        # print(type(msg))
+        # await msg.add_reaction("🔒")
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        print(user, reaction, str(__name__))
+    @log(f"{__name__}", "find items set emoji", log_coro=True)
+    async def on_reaction_add(self, reaction, user: Member):
+        if not user.bot:
+            print(type(user))
+            print(user.bot)
+            service = services[str(user)]
+            ctx = service.return_ctx()
+            msg = await ctx.send(f"{service.select_page(reaction, user)}")
+            await service.add_reactions(msg)

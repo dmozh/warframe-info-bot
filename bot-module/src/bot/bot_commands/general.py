@@ -20,4 +20,7 @@ class General(commands.Cog, name="General"):
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
-        print(user, reaction, str(__name__))
+        if not user.bot:
+            print(type(user))
+            print(user.bot)
+            print(user, reaction, str(__name__))
