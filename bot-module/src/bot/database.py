@@ -1,8 +1,8 @@
 import redis
-from bot.settings import Settings
+from bot.settings import settings
 from logger import log
 
-__redis_client = redis.Redis(Settings.REDIS_HOST, Settings.REDIS_PORT)
+__redis_client = redis.Redis(settings.REDIS_HOST, settings.REDIS_PORT)
 print(__redis_client)
 
 

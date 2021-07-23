@@ -23,15 +23,16 @@ class Trade(commands.Cog, name="Trade"):
         Find items
         enter command with one or more items separated by a space
         Example: $find парные a1 Мираж
+        :param ctx:
         :param items: tuple
         """
         # print(items)
         # if str(ctx.message.author) in services:
         #     await services[str(ctx.message.author)].clear_reactions()
-        service = TradeService(ctx)
-        services.append(service)
-        print(service)
-        print(services)
+        service = TradeService(ctx.message.author, services, ctx)
+        await services.add_service(ctx.message.author, service)
+        # print(service)
+        # print(services)
         # services[str(ctx.message.author)] = service
         # if not str(ctx.message.author) in services:
         #     service = TradeService(ctx)
@@ -48,13 +49,17 @@ class Trade(commands.Cog, name="Trade"):
         # await msg.add_reaction("🔒")
 
     @commands.Cog.listener()
+    async def on_message(self, msg):
+        pass#print(msg)
+
+    @commands.Cog.listener()
     # @log(f"{__name__}", "find items set emoji", log_coro=True)
     async def on_reaction_add(self, reaction, user: Member):
         if not user.bot:
-            print(type(reaction), reaction.message.reference)
+            # print(type(reaction), reaction.message.reference)
             # print(type(user))
             # print(user.bot)
-            print(services)
+            # print(services)
             service = list(filter(lambda x: x is not None,
                                   map(lambda x: x if x.ctx.message.author == user and
                                                     x.ctx.message.id == reaction.message.reference.message_id else None,

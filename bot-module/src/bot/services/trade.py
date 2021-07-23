@@ -1,14 +1,15 @@
 from ..database import get_keys_gen, get_item
-from ..settings import Settings
+from ..settings import settings
 
 from discord.ext.commands import Context
 from discord.message import Message
 from discord import Embed
 
+import asyncio
 from itertools import chain
 from json import loads
 from requests import get
-from typing import Optional
+from enum import Enum
 
 SHOWED_ITEMS = 10
 
@@ -25,30 +26,119 @@ emoji = {1: "1️⃣",
          "next": "➡",
          "previous": "⬅"}
 
-services = []
+
+class Timer:
+    def __init__(self, timeout, callback):
+        self._timeout = timeout
+        self._callback = callback
+        self._task = asyncio.ensure_future(self._job())
+
+    async def _job(self):
+        await asyncio.sleep(self._timeout)
+        await self._callback()
+
+    def cancel(self):
+        self._task.cancel()
+
+
+class Services:
+    __limits = 5
+
+    def __init__(self):
+        """
+        Constructor
+        """
+        self.services = []
+        self.authors = {}
+
+    async def add_service(self, author, service):
+        """
+        add service to collection for manage him
+        :param author: Member object from discord.py module
+        :param service: TradeService object
+        :return:
+        """
+        if author not in self.authors:
+            self.authors[author] = 0
+        if self.authors[author] < self.__limits:
+            self.services.append(service)
+            self.authors[author] += 1
+        else:
+            await service.cancel()
+        print("\n"*8)
+        print("AUTHOR", author, self.authors)
+        print("\n" * 8)
+
+    def remove_service(self, author, service):
+        self.services.remove(service)
+        self.authors[author] -= 1
+
+    def __repr__(self):
+        return f"Services <{self.services}>"
+
+    def __len__(self):
+        return len(self.services)
+
+    def __getitem__(self, item):
+        return self.services[item]
+
+
+class MessageState(Enum):
+    pass
 
 
 class TradeService:
 
-    def __init__(self, ctx, platform=None):
+    def __init__(self, author, collection: Services, ctx):
+        """
+        Constructor
+        :param author: key for limiting to create services
+        :param collection: Collection where will be saving created service
+        :param ctx: Context object from discord.py module
+        """
+        self.collection = collection
+
+        self.author = author
         self.ctx = ctx
-        self.msg = None
-        self.platform = platform
+        self.msg = None  # Last msg object
+        self.msg_state = None  # Currently no used
+        # Msg state for the difference which msg currently used
 
         self.__all_items = []
         self.__pages = 1
         self.__page = 0
         self.__item: dict = {}
 
-    def __get_items(self, items: tuple):
+        self.timer = Timer(settings.TIMER, self.remove)
+
+    async def cancel(self):
         """
-        :param items:
+        This function canceled to create new service in collections
         :return:
         """
-        print(items)
-        # if not self.__all_items:
-        keys = [str(item).lower() for item in items]
-        self.__all_items.extend(chain(*[get_keys_gen(pattern=f'{key}') for key in keys]))
+        await self.author.send("The limit of active a search queries has been exceeded")
+        self.timer.cancel()
+
+    async def remove(self):
+        """
+        Remove service from collection
+        :return:
+        """
+        self.timer.cancel()
+        await self.clear_reactions()
+        # print(self.msg.content, self.msg.embeds)
+        await self.edit_msg(content=f"Законченный поиск\n{self.msg.content}", embed=self.msg.embeds[0])
+        self.collection.remove_service(self.author, self)
+
+    def __get_items(self, needed_items: tuple):
+        """
+        Get needed_items from redis db
+        :param needed_items: tuple, needed trade items which find user
+        :return:
+        """
+        # keys =
+        self.__all_items \
+            .extend(chain(*[get_keys_gen(pattern=f'{key}') for key in [str(item).lower() for item in needed_items]]))
         self.__pages = round(len(self.__all_items) / SHOWED_ITEMS)
 
     async def action_on_msg(self, **kwargs):
@@ -60,13 +150,13 @@ class TradeService:
             await self.add_reactions(self.msg)
 
     async def action_on_reaction(self, reaction, user):
-        if user == self.ctx.message.author:
+        if user == self.ctx.message.author and self.ctx.message.id == reaction.message.reference.message_id:
             if str(reaction) != emoji["previous"] and str(reaction) != emoji["next"]:
                 for key, value in emoji.items():
                     if str(reaction) == value:
                         content, embed = self._gen_trade_item_msg(key)
-                        await self.edit_msg(msg=reaction.message, content=content, embed=embed)
-                        self.__del__()
+                        await self.edit_msg(content=content, embed=embed)
+                        await self.remove()
             else:
                 if str(reaction) == emoji["previous"]:
                     if self.__page != 0:
@@ -82,8 +172,6 @@ class TradeService:
                     pass
                 await self.edit_msg(msg=reaction.message, content=self._gen_general_msg())
                 await self.add_reactions(reaction.message)
-            # print(self.__page)
-            # return self.general_msg()
 
     def _gen_general_msg(self, items: tuple = None):
         if items:
@@ -114,8 +202,8 @@ class TradeService:
         print(key, self.__page)
         self.__item = loads(get_item(self.__all_items[key + (self.__page * 10) - 1].lower()).decode(encoding='utf8'))
         print(self.__item)
-        response = get(Settings.WF_MARKET_API_HOST + f"/items/{self.__item['url_name']}/orders",
-                       headers=Settings.WF_MARKET_HEADERS)
+        response = get(settings.WF_MARKET_API_HOST + f"/items/{self.__item['url_name']}/orders",
+                       headers=settings.WF_MARKET_HEADERS)
         orders = sorted(response.json()['payload']["orders"], key=lambda item: item['platinum'])
         text = f"{self.ctx.message.author.mention}```\n"
         it = 1
@@ -141,7 +229,8 @@ class TradeService:
         i = 1
         _limit = \
             len(self.__all_items) if len(self.__all_items) < SHOWED_ITEMS \
-            else len(self.__all_items) - self.__pages * SHOWED_ITEMS if self.__page == self.__pages else SHOWED_ITEMS
+                else len(self.__all_items) - self.__pages * SHOWED_ITEMS \
+                if self.__page == self.__pages else SHOWED_ITEMS
 
         while i <= _limit:
             await msg.add_reaction(emoji[i])
@@ -165,13 +254,10 @@ class TradeService:
     async def delete_last_msg(self):
         await self.msg.delete()
         self.msg = None
+        self.msg_state = None
 
     def return_ctx(self) -> Context:
         return self.ctx
 
-    def __del__(self):
-        try:
-            del services[services.index(self)]
-        except ValueError:
-            pass
-        """"""
+
+services = Services()

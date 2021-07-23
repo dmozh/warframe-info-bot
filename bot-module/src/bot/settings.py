@@ -1,5 +1,8 @@
 # временное решение
-class Settings:
+from pydantic import BaseSettings
+
+
+class Settings(BaseSettings):
     token = ''
     bot = 'WarframeBot-info'
     id = 686219829337784330
@@ -11,5 +14,7 @@ class Settings:
     WF_MARKET_API_HOST = "https://api.warframe.market/v1"
     WF_MARKET_HEADERS = {"platform": 'pc'}
 
-    def __init__(self):
-        pass
+    TIMER = 600
+
+
+settings = Settings()
