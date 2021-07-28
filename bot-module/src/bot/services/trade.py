@@ -1,15 +1,16 @@
 from ..database import get_keys_gen, get_item
 from ..settings import settings
+from .base import BaseService, Services
 
 from discord.ext.commands import Context
 from discord.message import Message
 from discord import Embed
 
-import asyncio
 from itertools import chain
 from json import loads
 from requests import get
 from enum import Enum
+
 
 SHOWED_ITEMS = 10
 
@@ -27,67 +28,11 @@ emoji = {1: "1️⃣",
          "previous": "⬅"}
 
 
-class Timer:
-    def __init__(self, timeout, callback):
-        self._timeout = timeout
-        self._callback = callback
-        self._task = asyncio.ensure_future(self._job())
-
-    async def _job(self):
-        await asyncio.sleep(self._timeout)
-        await self._callback()
-
-    def cancel(self):
-        self._task.cancel()
-
-
-class Services:
-    __limits = 5
-
-    def __init__(self):
-        """
-        Constructor
-        """
-        self.services = []
-        self.authors = {}
-
-    async def add_service(self, author, service):
-        """
-        add service to collection for manage him
-        :param author: Member object from discord.py module
-        :param service: TradeService object
-        :return:
-        """
-        if author not in self.authors:
-            self.authors[author] = 0
-        if self.authors[author] < self.__limits:
-            self.services.append(service)
-            self.authors[author] += 1
-        else:
-            await service.cancel()
-        print("\n"*8)
-        print("AUTHOR", author, self.authors)
-        print("\n" * 8)
-
-    def remove_service(self, author, service):
-        self.services.remove(service)
-        self.authors[author] -= 1
-
-    def __repr__(self):
-        return f"Services <{self.services}>"
-
-    def __len__(self):
-        return len(self.services)
-
-    def __getitem__(self, item):
-        return self.services[item]
-
-
 class MessageState(Enum):
     pass
 
 
-class TradeService:
+class TradeService(BaseService):
 
     def __init__(self, author, collection: Services, ctx):
         """
@@ -96,10 +41,8 @@ class TradeService:
         :param collection: Collection where will be saving created service
         :param ctx: Context object from discord.py module
         """
-        self.collection = collection
-
-        self.author = author
-        self.ctx = ctx
+        super().__init__(author, collection)
+        self.ctx: Context = ctx
         self.msg = None  # Last msg object
         self.msg_state = None  # Currently no used
         # Msg state for the difference which msg currently used
@@ -109,26 +52,25 @@ class TradeService:
         self.__page = 0
         self.__item: dict = {}
 
-        self.timer = Timer(settings.TIMER, self.remove)
+        self.__category = None
+        self.__channel = None
 
     async def cancel(self):
         """
         This function canceled to create new service in collections
         :return:
         """
+        await super(TradeService, self).cancel()
         await self.author.send("The limit of active a search queries has been exceeded")
-        self.timer.cancel()
 
     async def remove(self):
         """
         Remove service from collection
         :return:
         """
-        self.timer.cancel()
+        await super(TradeService, self).remove()
         await self.clear_reactions()
-        # print(self.msg.content, self.msg.embeds)
         await self.edit_msg(content=f"Законченный поиск\n{self.msg.content}", embed=self.msg.embeds[0])
-        self.collection.remove_service(self.author, self)
 
     def __get_items(self, needed_items: tuple):
         """
@@ -142,15 +84,43 @@ class TradeService:
         self.__pages = round(len(self.__all_items) / SHOWED_ITEMS)
 
     async def action_on_msg(self, **kwargs):
-        if self.msg:
-            pass
+        """
+        Execute when bot get msg
+        :param kwargs:
+        :return:
+        """
+        if self.__category is None:
+            if "warframe-info" in [category.name for category in self.ctx.guild.categories]:
+                self.__category = list((category for category in self.ctx.guild.categories if
+                                        category.name == "warframe-info"))[0]
+            else:
+                self.__category = await self.ctx.guild.create_category("warframe-info")
+        # print(self.__category.text_channels)
+        if self.__category:
+            if self.__channel is None:
+                if "trade-info" in [channel.name for channel in self.__category.text_channels]:
+                    self.__channel = list((channel for channel in self.__category.text_channels if
+                                           channel.name == "trade-info"))[0]
+                else:
+                    self.__channel = await self.__category.create_text_channel("trade-info")
+            if self.__channel:
+                if self.msg:
+                    pass
+                else:
+                    text = self._gen_general_msg(kwargs['items'])
+                    self.msg = await self.__channel.send(f"{text}")
+                    await self.add_reactions(self.msg)
         else:
-            text = self._gen_general_msg(kwargs['items'])
-            self.msg = await self.ctx.message.reply(f"{text}")
-            await self.add_reactions(self.msg)
+            await self.ctx.send("Категория 'warframe-info' не создана")
 
     async def action_on_reaction(self, reaction, user):
-        if user == self.ctx.message.author and self.ctx.message.id == reaction.message.reference.message_id:
+        """
+        Execute when user set reaction on msg from bot
+        :param reaction:
+        :param user:
+        :return:
+        """
+        if user == self.ctx.message.author and self.msg.id == reaction.message.id:
             if str(reaction) != emoji["previous"] and str(reaction) != emoji["next"]:
                 for key, value in emoji.items():
                     if str(reaction) == value:
@@ -177,7 +147,8 @@ class TradeService:
         if items:
             self.__get_items(items)
         if len(self.__all_items) > 0:
-            text = f"{self.ctx.message.author.mention}```Вы ищите: \n"
+            text = f"{self.ctx.message.author.mention}, ваш запрос на поиск следующих предметов: {str(*items)}" \
+                   f"```Возможно вы ищите: \n"
             it = 1
             for index in range(0 + (self.__page * 10), len(self.__all_items)):
                 _tmp = text
@@ -199,9 +170,9 @@ class TradeService:
         # await self.add_reactions(self.msg)
 
     def _gen_trade_item_msg(self, key: int):
-        print(key, self.__page)
+        # print(key, self.__page)
         self.__item = loads(get_item(self.__all_items[key + (self.__page * 10) - 1].lower()).decode(encoding='utf8'))
-        print(self.__item)
+        # print(self.__item)
         response = get(settings.WF_MARKET_API_HOST + f"/items/{self.__item['url_name']}/orders",
                        headers=settings.WF_MARKET_HEADERS)
         orders = sorted(response.json()['payload']["orders"], key=lambda item: item['platinum'])
@@ -260,4 +231,4 @@ class TradeService:
         return self.ctx
 
 
-services = Services()
+# services = Services()

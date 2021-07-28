@@ -1,8 +1,11 @@
 from discord import Embed
-
+from discord import Message
+from discord.ext.commands import Context
 from logger import log
 from ..services import general
 from discord.ext import commands
+from ..settings import settings
+from requests import post
 
 
 class General(commands.Cog, name="General"):
@@ -13,7 +16,30 @@ class General(commands.Cog, name="General"):
     @log('command hello', 'execute command hello', log_coro=True)
     async def hello(self, ctx):
         author = ctx.message.author
+        print(ctx.message.channel.id)
+        base_url = f"https://discord.com/api"
 
+        headers = {"Authorization": f"Bot {settings.token}",
+                   'Content-Type': 'application/json'}
+        json = {
+            "content": "Hello",
+            "components": [
+                {
+                    "type": 1,
+                    "components": [
+                        {
+                            "type": 2,
+                            "label": "Click me!",
+                            "style": 1,
+                            "custom_id": "click_one"
+                        }
+                    ]
+
+                }
+            ]
+        }
+        r = post(base_url + f"/v9/channels/{str(ctx.message.channel.id)}/messages", headers=headers, json=json)
+        print(r.status_code)
         await ctx.send(f'Hello, {author.mention}!')
 
     @commands.command()
