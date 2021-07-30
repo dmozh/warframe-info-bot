@@ -36,6 +36,6 @@ class Trade(commands.Cog, name="Trade"):
         if not user.bot:
             service = list(filter(lambda x: x is not None,
                                   map(lambda x: x if x.ctx.message.author == user and
-                                                    x.msg.id == reaction.message.id else None,
+                                                     x.msg.id == reaction.message.id else None,
                                       services)))[0]
             await service.action_on_reaction(reaction, user)

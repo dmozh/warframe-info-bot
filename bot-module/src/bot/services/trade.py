@@ -34,7 +34,7 @@ class MessageState(Enum):
 
 class TradeService(BaseService):
 
-    def __init__(self, author, collection: Services, ctx):
+    def __init__(self, author, collection: Services, ctx: Context):
         """
         Constructor
         :param author: key for limiting to create services
@@ -42,7 +42,7 @@ class TradeService(BaseService):
         :param ctx: Context object from discord.py module
         """
         super().__init__(author, collection)
-        self.ctx: Context = ctx
+        self._ctx = ctx
         self.msg = None  # Last msg object
         self.msg_state = None  # Currently no used
         # Msg state for the difference which msg currently used
@@ -90,19 +90,19 @@ class TradeService(BaseService):
         :return:
         """
         if self.__category is None:
-            if "warframe-info" in [category.name for category in self.ctx.guild.categories]:
-                self.__category = list((category for category in self.ctx.guild.categories if
-                                        category.name == "warframe-info"))[0]
+            if settings.bot_category in [category.name for category in self._ctx.guild.categories]:
+                self.__category = list((category for category in self._ctx.guild.categories if
+                                        category.name == settings.bot_category))[0]
             else:
-                self.__category = await self.ctx.guild.create_category("warframe-info")
+                self.__category = await self._ctx.guild.create_category(settings.bot_category)
         # print(self.__category.text_channels)
         if self.__category:
             if self.__channel is None:
-                if "trade-info" in [channel.name for channel in self.__category.text_channels]:
+                if settings.trade_channel in [channel.name for channel in self.__category.text_channels]:
                     self.__channel = list((channel for channel in self.__category.text_channels if
-                                           channel.name == "trade-info"))[0]
+                                           channel.name == settings.trade_channel))[0]
                 else:
-                    self.__channel = await self.__category.create_text_channel("trade-info")
+                    self.__channel = await self.__category.create_text_channel(settings.trade_channel)
             if self.__channel:
                 if self.msg:
                     pass
@@ -111,7 +111,7 @@ class TradeService(BaseService):
                     self.msg = await self.__channel.send(f"{text}")
                     await self.add_reactions(self.msg)
         else:
-            await self.ctx.send("Категория 'warframe-info' не создана")
+            await self._ctx.send(f"Категория {settings.bot_category} не создана")
 
     async def action_on_reaction(self, reaction, user):
         """
@@ -120,7 +120,7 @@ class TradeService(BaseService):
         :param user:
         :return:
         """
-        if user == self.ctx.message.author and self.msg.id == reaction.message.id:
+        if user == self._ctx.message.author and self.msg.id == reaction.message.id:
             if str(reaction) != emoji["previous"] and str(reaction) != emoji["next"]:
                 for key, value in emoji.items():
                     if str(reaction) == value:
@@ -147,7 +147,7 @@ class TradeService(BaseService):
         if items:
             self.__get_items(items)
         if len(self.__all_items) > 0:
-            text = f"{self.ctx.message.author.mention}, ваш запрос на поиск следующих предметов: {str(*items)}" \
+            text = f"{self._ctx.message.author.mention}, ваш запрос на поиск следующих предметов: {str(*items)}" \
                    f"```Возможно вы ищите: \n"
             it = 1
             for index in range(0 + (self.__page * 10), len(self.__all_items)):
@@ -166,7 +166,7 @@ class TradeService(BaseService):
                    "Упс.. Ничего не найдено, попробуйте еще раз" \
                    "```"
         return text
-        # self.msg = await self.ctx.send(f"{text}")
+        # self.msg = await self._ctx.send(f"{text}")
         # await self.add_reactions(self.msg)
 
     def _gen_trade_item_msg(self, key: int):
@@ -176,7 +176,7 @@ class TradeService(BaseService):
         response = get(settings.WF_MARKET_API_HOST + f"/items/{self.__item['url_name']}/orders",
                        headers=settings.WF_MARKET_HEADERS)
         orders = sorted(response.json()['payload']["orders"], key=lambda item: item['platinum'])
-        text = f"{self.ctx.message.author.mention}```\n"
+        text = f"{self._ctx.message.author.mention}```\n"
         it = 1
         for order in orders:
             _tmp = text
@@ -193,7 +193,7 @@ class TradeService(BaseService):
             embed.set_image(url=self.__item['thumb'])
         except Exception as e:
             pass
-        # self.msg = await self.ctx.send(text, embed=embed)
+        # self.msg = await self._ctx.send(text, embed=embed)
         return text, embed
 
     async def add_reactions(self, msg: Message):
@@ -227,8 +227,9 @@ class TradeService(BaseService):
         self.msg = None
         self.msg_state = None
 
-    def return_ctx(self) -> Context:
-        return self.ctx
+    @property
+    def ctx(self) -> Context:
+        return self._ctx
 
 
 # services = Services()

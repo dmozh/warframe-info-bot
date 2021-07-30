@@ -1,4 +1,4 @@
-from .services import general, trade
+from .services import worldstate, trade
 
 DIALOGS = {}
 

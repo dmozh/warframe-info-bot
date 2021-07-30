@@ -1,5 +1,5 @@
 from .trade import *
-from .general import *
+from .worldstate import *
 
 cogs = [obj for (name, obj) in vars().items()
         if hasattr(obj, "__class__") and obj.__class__.__name__ == "CogMeta"]
@@ -19,8 +19,8 @@ cogs = [obj for (name, obj) in vars().items()
 #         print(message)
 #
 #     @commands.command()
-#     async def find1(self, ctx, msg):
-#         print(ctx)
+#     async def find1(self, _ctx, msg):
+#         print(_ctx)
 #
 #     @commands.Cog.listener()
 #     async def on_message_edit(self, after, before):

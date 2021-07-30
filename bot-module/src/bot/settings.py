@@ -1,4 +1,3 @@
-# временное решение
 from pydantic import BaseSettings
 
 
@@ -14,7 +13,16 @@ class Settings(BaseSettings):
     WF_MARKET_API_HOST = "https://api.warframe.market/v1"
     WF_MARKET_HEADERS = {"platform": 'pc'}
 
+    WF_API = "https://api.warframestat.us"
+
     TIMER = 600
 
+    bot_category="warframe-info"
+    trade_channel="trade-info"
+    world_state_channel="world-state-info"
 
-settings = Settings()
+
+settings = Settings(
+    _env_file='../.env',
+    _env_file_encoding='utf-8'
+)
