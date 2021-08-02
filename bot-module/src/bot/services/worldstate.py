@@ -71,9 +71,12 @@ class WorldStateService(BaseService):
                 else:
                     response = request(platform, command, language)
                     if str(response.text) != '[]':
-                        if command == "$void_trader":
+                        if "$void_trader" in command:
                             text = self.generate_msg_void_trader(response)
-
+                        elif "$earth_cycle" or "$cetus_cycle" or "$cambion_cycle" in command:
+                            text = self.generate_msg_location(response)
+                        else:
+                            text = f"Неизвестная команда"
                     else:
                         text = 'Никаких данных на данный момент нет'
 
@@ -83,35 +86,6 @@ class WorldStateService(BaseService):
             await self._ctx.send(f"Категория {settings.bot_category} не создана")
 
     def generate_msg_void_trader(self, response: Response):
-        js = {"id": "5d1e07a0a38e4a4fdd7cefca", "activation": "2021-07-30T13:00:00.000Z", "startString": "-1h 50m 25s",
-              "expiry": "2021-08-01T13:00:00.000Z", "active": True, "character": "Baro Ki'Teer",
-              "location": "Реле Kronia (Сатурн)",
-              "inventory": [{"item": "Plushy Sun Monster Common", "ducats": 150, "credits": 125000},
-                            {"item": "Животный Инстинкт Прайм", "ducats": 300, "credits": 200000},
-                            {"item": "Морф-Трансформер Прайм", "ducats": 350, "credits": 150000},
-                            {"item": "Ствол из Рубедо Прайм", "ducats": 350, "credits": 175000},
-                            {"item": "Weapon Glaive On Six Kills Buff Secondary", "ducats": 300, "credits": 115000},
-                            {"item": "Значок: Лотос Призма", "ducats": 80, "credits": 50000},
-                            {"item": "Мазня для К-Драйва: Ки'Тиир - Синее Сафари", "ducats": 75, "credits": 75000},
-                            {"item": "Ki'teer Atmos Oculus", "ducats": 525, "credits": 375000},
-                            {"item": "Скин Игниса: Тосун", "ducats": 300, "credits": 300000},
-                            {"item": "Сандана: Уру Призма", "ducats": 350, "credits": 275000},
-                            {"item": "Постер: Паразон", "ducats": 100, "credits": 125000},
-                            {"item": "Прова Вандал", "ducats": 410, "credits": 250000},
-                            {"item": "Скин стрелы Призма", "ducats": 350, "credits": 75000},
-                            {"item": "Нагрудник Эос прайм", "ducats": 125, "credits": 75000},
-                            {"item": "Левый Наплечник Эос Прайм", "ducats": 50, "credits": 75000},
-                            {"item": "Левая Шпора Эос Прайм", "ducats": 65, "credits": 50000},
-                            {"item": "Правый Наплечник Эос Прайм", "ducats": 50, "credits": 75000},
-                            {"item": "Правая Шпора Эос Прайм", "ducats": 65, "credits": 50000},
-                            {"item": "Игнис Призрак", "ducats": 550, "credits": 250000},
-                            {"item": "Сугатра: Анпу", "ducats": 250, "credits": 250000},
-                            {"item": "Скин Лимбо: Бессмертный", "ducats": 550, "credits": 100000},
-                            {"item": "Маска стража: Кават", "ducats": 500, "credits": 200000},
-                            {"item": "Хвост стража: Кават", "ducats": 400, "credits": 250000},
-                            {"item": "Крылья стража: Кават", "ducats": 400, "credits": 250000},
-                            {"item": "Чертёж: Пески Инароса", "ducats": 100, "credits": 25000}],
-              "psId": "5d1e07a0a38e4a4fdd7cefca25", "endString": "1d 22h 9m 34s"}
         _data = response.json()
         if _data['active']:
             _ = _data['endString'][_data['endString'].rfind('m') - 1]
@@ -128,7 +102,6 @@ class WorldStateService(BaseService):
                 items += f'{item["item"]} по цене в {item["ducats"]} дукатов и {item["credits"]} кредитов\n'
             else:
                 text += f'{items}```'
-
             return text
         else:
             _ = _data['startString'][_data['startString'].rfind('m') - 1]
@@ -142,3 +115,24 @@ class WorldStateService(BaseService):
             return f'На текущий момент {_data["character"]} не прибывает ни на одном реле\n' \
                    f'Ожидайте {_data["character"]} через {_data["startString"].replace("d", " дней").replace("h", f" часов").replace("m", _)[0:-3]} ' \
                    f'на локации {_data["location"]}'
+
+    def generate_msg_location(self, response: Response):
+        _data = response.json()
+        if "cambion" in _data['id']:
+            if _data['active'] == "fass":
+                state = "Фэз"
+            else:
+                state = "Воум"
+        elif "cetus" in _data['id']:
+            if _data['isDay']:
+                state = "Тепло"
+            else:
+                state = "Холод"
+        elif "earth" in _data['id']:
+            if _data['isDay']:
+                state = "День"
+            else:
+                state = "Ночь"
+        else:
+            return "Нет данных"
+        return f"Текущая фаза {state}"
