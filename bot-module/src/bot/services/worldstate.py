@@ -9,10 +9,33 @@ from discord.message import Message
 from itertools import chain
 from json import loads
 from requests import get, Response
+from datetime import datetime, timedelta
 from enum import Enum
 
 
-def request(platform: str, command: str, language: str) -> Response:
+class KeyStorm(str, Enum):
+    ALL = "all"
+    PLANET = "planet"
+    STORM = "storm"
+
+
+# unusage
+class EnemyKey(str, Enum):
+    ALL = "all"
+    GRINEER = "grineer"
+    CORPUS = "corpus"
+
+
+class KeyTier(str, Enum):
+    ALL = "0"
+    LIT = "1"
+    MEZO = "2"
+    NEO = "3"
+    AXI = "4"
+    REQUIEM = "5"
+
+
+def request(command: str, platform: str, language: str) -> Response:
     if '_' in command:
         print(command)
         endpoint = command \
@@ -50,7 +73,7 @@ class WorldStateService(BaseService):
         """
         await super(WorldStateService, self).remove()
 
-    async def action_on_command(self, command, platform, language):
+    async def action_on_command(self, command, platform, language, **kwargs):
         if self.__category is None:
             if settings.bot_category in [category.name for category in self._ctx.guild.categories]:
                 self.__category = list((category for category in self._ctx.guild.categories if
@@ -69,17 +92,31 @@ class WorldStateService(BaseService):
                 if self.msg:
                     pass
                 else:
-                    response = request(platform, command, language)
-                    if str(response.text) != '[]':
-                        if "$void_trader" in command:
-                            text = self.generate_msg_void_trader(response)
-                        elif "$earth_cycle" or "$cetus_cycle" or "$cambion_cycle" in command:
-                            text = self.generate_msg_location(response)
-                        else:
-                            text = f"Неизвестная команда"
+                    response = request(command, platform, language)
+                    if response.status_code == 404:
+                        text = f"{self._ctx.message.author.mention}\n" \
+                               f"Ничего не найдено по запросу command={command.split(' ')[0]} platform={platform} language={language}"
                     else:
-                        text = 'Никаких данных на данный момент нет'
-
+                        if str(response.text) != '[]':
+                            if "$void_trader" in command:
+                                text = self.generate_msg_void_trader(response)
+                            elif ("$earth_cycle" in command) or ("$cetus_cycle" in command) or (
+                                    "$cambion_cycle" in command):
+                                text = self.generate_msg_location(response)
+                            elif "$invasions" in command:
+                                text = self.generate_msg_invasions(response)
+                            elif "$alerts" in command:
+                                text = self.generate_msg_alerts(response)
+                            elif "$fissures" in command:
+                                text = self.generate_msg_fissures(response, kwargs['key_storm'], kwargs["key_tier"])
+                            elif "$sortie" in command:
+                                text = self.generate_msg_sortie(response)
+                            elif "$events" in command:
+                                text = self.generate_msg_events(response)
+                            else:
+                                text = f"{self._ctx.message.author.mention}\nНеизвестная команда"
+                        else:
+                            text = f'{self._ctx.message.author.mention}\nНикаких данных на данный момент нет'
                     self.msg = await self.__channel.send(f"{text}")
                     await self.remove()
         else:
@@ -95,7 +132,7 @@ class WorldStateService(BaseService):
                 _ = " минуты"
             else:
                 _ = " минут"
-            text = f'{_data["character"]} прибыл на локацию {_data["location"]}, уедет через {_data["endString"].replace("d", " дней").replace("h", f" часов").replace("m", _)[0:-3]}\n' \
+            text = f'{self._ctx.message.author.mention}\n{_data["character"]} прибыл на локацию {_data["location"]}, уедет через {_data["endString"].replace("d", " дней").replace("h", f" часов").replace("m", _)[0:-3]}\n' \
                    f'Предложения: \n'
             items = f'```\n'
             for item in _data["inventory"]:
@@ -112,7 +149,7 @@ class WorldStateService(BaseService):
             else:
                 _ = " минут"
 
-            return f'На текущий момент {_data["character"]} не прибывает ни на одном реле\n' \
+            return f'{self._ctx.message.author.mention}\nНа текущий момент {_data["character"]} не прибывает ни на одном реле\n' \
                    f'Ожидайте {_data["character"]} через {_data["startString"].replace("d", " дней").replace("h", f" часов").replace("m", _)[0:-3]} ' \
                    f'на локации {_data["location"]}'
 
@@ -135,4 +172,123 @@ class WorldStateService(BaseService):
                 state = "Ночь"
         else:
             return "Нет данных"
-        return f"Текущая фаза {state}"
+        return f"{self._ctx.message.author.mention}\nТекущая фаза {state}"
+
+    def generate_msg_invasions(self, response: Response):
+        _data = list(filter(lambda x: x['completed'] is False, response.json()))
+        print(len(_data))
+        text = f"{self._ctx.message.author.mention}\n" \
+               f"Доступно {len(_data)} вторжения:\n"
+
+        for item in _data:
+            a_reward = f"предлагает {item['attackerReward']['itemString']}" \
+                if item['attackerReward']['itemString'] != "" \
+                else "ничего не предлагает"
+            d_reward = f"предлагает {item['defenderReward']['itemString']}" \
+                if item['defenderReward']['itemString'] != "" \
+                else "ничего не предлагает"
+            text += f"{item['desc']} на {item['node']}\n" \
+                    f"Детали:\n" \
+                    f"```" \
+                    f"  --> Атакующая фракция {item['attackingFaction']} " \
+                    f"{a_reward}\n" \
+                    f"  --> Обороняющаяся фракция {item['defendingFaction']} " \
+                    f"{d_reward}\n" \
+                    f"  --> Вторжение будет длиться еще {item['eta']}" \
+                    f"```\n"
+        return text
+
+    def generate_msg_alerts(self, response: Response):
+        _data = response.json()
+        print(_data)
+        return str(_data)
+
+    def generate_msg_fissures(self, response: Response, storm: KeyStorm, tier: KeyTier):
+        _data = list(filter(lambda x: x['active'] is True, response.json()))
+        if storm == KeyStorm.STORM:
+            _data = list(filter(lambda x: x['isStorm'] is True, _data))
+        elif storm == KeyStorm.PLANET:
+            _data = list(filter(lambda x: x['isStorm'] is False, _data))
+        else:
+            pass
+        if tier != KeyTier.ALL:
+            _data = list(filter(lambda x: x['tierNum'] == int(tier.value), _data))
+        _data = list(sorted(_data, key=lambda x: x['tierNum']))
+
+        text = f"{self._ctx.message.author.mention}\n" \
+               f"Текущие разрывы бездны\n"
+        _lit_block = "Уровень Лит:" \
+                     "\n```"
+        _mezo_block = "Уровень Мезо:" \
+                      "\n```"
+        _neo_block = "Уровень Нео:" \
+                     "\n```"
+        _axi_block = "Уровень Акси:" \
+                     "\n```"
+        _requiem_block = "Уровень Реквием:" \
+                         "\n```"
+        for item in _data:
+            if item['tierNum'] == 1:
+                _lit_block += f"--> На узле {item['node']} миссия типа {item['missionType']} с '{item['enemy']}' " \
+                              f"будет активна еще {item['eta']}\n"
+            elif item['tierNum'] == 2:
+                _mezo_block += f"--> На узле {item['node']} миссия типа {item['missionType']} с '{item['enemy']}' " \
+                               f"будет активна еще {item['eta']}\n"
+            elif item['tierNum'] == 3:
+                _neo_block += f"--> На узле {item['node']} миссия типа {item['missionType']} с '{item['enemy']}' " \
+                              f"будет активна еще {item['eta']}\n"
+            elif item['tierNum'] == 4:
+                _axi_block += f"--> На узле {item['node']} миссия типа {item['missionType']} с '{item['enemy']}' " \
+                              f"будет активна еще {item['eta']}\n"
+            elif item['tierNum'] == 5:
+                _requiem_block += f"--> На узле {item['node']} миссия типа {item['missionType']} с '{item['enemy']}' " \
+                                  f"будет активна еще {item['eta']}\n"
+            else:
+                pass
+        else:
+            _lit_block += "```"
+            _mezo_block += "```"
+            _neo_block += "```"
+            _axi_block += "```"
+            _requiem_block += "```"
+        if tier == KeyTier.ALL:
+            text += _lit_block + "\n" + _mezo_block + "\n" + _neo_block + "\n" + _axi_block + "\n" + _requiem_block
+        else:
+            if tier == KeyTier.LIT:
+                text += _lit_block
+            elif tier == KeyTier.MEZO:
+                text += _mezo_block
+            elif tier == KeyTier.NEO:
+                text += _neo_block
+            elif tier == KeyTier.AXI:
+                text += _axi_block
+            else:
+                text += _requiem_block
+        print(len(text))
+        return text
+
+    def generate_msg_sortie(self, response: Response):
+        _data = response.json()
+        activation = datetime.strptime(_data['activation'], '%Y-%m-%dT%H:%M:%S.%fZ') + timedelta(hours=3)
+        text = f"{self._ctx.message.author.mention}\n" \
+               f"Информация о текущей вылазке: \n" \
+               f"  --> запущена {activation.date()} в {activation.time()} по Москве (+3)\n" \
+               f"  --> фракция {_data['faction']}\n" \
+               f"  --> босс {_data['boss']}\n" \
+               f"  --> миссии: \n"
+        for v in _data['variants']:
+            text += f'На узле {v["node"]}\n'
+            text += f'```' \
+                    f'Тип миссии: {v["missionType"]}\n' \
+                    f'Модификатор: {v["modifier"]}\n' \
+                    f'Описание модификатора: {v["modifierDescription"]}\n' \
+                    f'```\n'
+        activation += timedelta(days=1)
+        text += f"Новая вылазка начнется {activation.date()} в {activation.time()} по Москве (+3)"
+        print(_data)
+        return str(text)
+
+    def generate_msg_events(self, response: Response):
+        _data = response.json()
+        print(_data)
+        return str(_data)
