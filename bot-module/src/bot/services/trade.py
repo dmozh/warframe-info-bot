@@ -12,6 +12,7 @@ from requests import get
 from enum import Enum
 
 
+
 SHOWED_ITEMS = 10
 
 emoji = {1: "1️⃣",
