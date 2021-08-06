@@ -34,8 +34,8 @@ class Trade(commands.Cog, name="Trade"):
     # @log(f"{__name__}", "find items set emoji", log_coro=True)
     async def on_reaction_add(self, reaction, user: Member):
         if not user.bot:
-            service = list(filter(lambda x: x is not None,
+            service = next(filter(lambda x: x is not None,
                                   map(lambda x: x if x.ctx.message.author == user and
                                                      x.msg.id == reaction.message.id else None,
-                                      services)))[0]
+                                      services)))
             await service.action_on_reaction(reaction, user)
