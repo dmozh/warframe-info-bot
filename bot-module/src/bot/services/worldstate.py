@@ -177,8 +177,19 @@ class WorldStateService(BaseService):
     def generate_msg_invasions(self, response: Response):
         _data = list(filter(lambda x: x['completed'] is False, response.json()))
         print(len(_data))
+        if len(_data) == 1:
+            skl = "вторжение"
+        elif len(_data) == 2:
+            skl = "вторжения"
+        elif len(_data) > 20:
+            if len(_data) % 10 == 1:
+                skl = "вторжение"
+            elif len(_data) % 10 == 2:
+                skl = "вторжения"
+        else:
+            skl = "вторжений"
         text = f"{self._ctx.message.author.mention}\n" \
-               f"Доступно {len(_data)} вторжения:\n"
+               f"Доступно {len(_data)} {skl}:\n"
 
         for item in _data:
             a_reward = f"предлагает {item['attackerReward']['itemString']}" \

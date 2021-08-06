@@ -1,12 +1,12 @@
-from grabber.settings import Settings
+from grabber.settings import settings
 from grabber.redis_sender import set_value
 from logger import log
 from time import sleep
 from requests import get
 
-settings = Settings()
+# settings = Settings()
 WORK = True
-WAIT = 86400
+
 iteration = 0
 
 
@@ -29,7 +29,7 @@ def grab():
 def start():
     while WORK:
         grab()
-        sleep(WAIT)
+        sleep(settings.WAIT)
 
 
 if __name__ == '__main__':

@@ -1,9 +1,9 @@
 import redis
-from grabber.settings import Settings
+from grabber.settings import settings
 from json import dumps
 from logger import log
 
-__redis_client = redis.Redis(host=Settings.REDIS_HOST, port=Settings.REDIS_PORT)
+__redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
 
 
 def set_value(item: dict):
