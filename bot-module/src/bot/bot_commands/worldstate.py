@@ -1,9 +1,7 @@
-from ..services.worldstate import WorldStateService, KeyStorm, KeyTier
-from ..services.base import services
-from ..settings import settings
+from services.worldstate import WorldStateService, KeyStorm, KeyTier
+from services.base import services
+from settings import settings
 
-from discord import Embed
-from discord import Message
 from discord.ext.commands import Context
 from discord.ext import commands
 

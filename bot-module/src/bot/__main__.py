@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
-from bot.settings import settings
-from bot.bot_commands import cogs
+from settings import settings
+from bot_commands import cogs
 
 bot = commands.Bot(command_prefix=settings.prefix)
 

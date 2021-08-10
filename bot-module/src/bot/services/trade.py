@@ -1,5 +1,5 @@
-from ..database import get_keys_gen, get_item
-from ..settings import settings
+from database import get_keys_gen, get_item
+from settings import settings
 from .base import BaseService, Services
 
 from discord.ext.commands import Context

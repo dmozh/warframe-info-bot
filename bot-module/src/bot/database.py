@@ -1,9 +1,9 @@
 import redis
-from bot.settings import settings
+from settings import settings
 from logger import log
 
 __redis_client = redis.Redis(settings.REDIS_HOST, settings.REDIS_PORT)
-print(__redis_client)
+# print(__redis_client)
 
 
 @log(f"{__name__}", 'get keys from pattern')

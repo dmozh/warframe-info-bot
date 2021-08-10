@@ -1,0 +1,25 @@
+version: '3.5'
+networks:
+   chat-network:
+services:
+    redis:
+       container_name: redis
+       image: redis
+       ports:
+        - 6379:6379
+    grabber:
+       container_name: grabber
+       image: medovayalapa/warframe-info-grabber
+       command: python3 grabber/__main__.py
+       depends_on:
+        - redis
+    chatbot:
+       environment:
+         - token=
+       container_name: bot
+       image: medovayalapa/warframe-info-discord-bot
+       command: python3 bot/__main__.py
+       ports:
+         - 8080:8080
+       depends_on:
+         - redis

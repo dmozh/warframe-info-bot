@@ -3,11 +3,11 @@ from functools import wraps
 import logging.config
 import os
 
-if os.path.exists("../../logs"):
+if os.path.exists("../logs"):
     pass
 else:
-    os.mkdir("../../logs")
-logging.config.fileConfig(os.path.abspath('../logger.conf'))
+    os.mkdir("../logs")
+logging.config.fileConfig(os.path.abspath('logger.conf'))
 
 info_logger, traceback_logger = logging.getLogger("infoLogger"), logging.getLogger("errorLogger")
 

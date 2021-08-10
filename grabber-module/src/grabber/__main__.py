@@ -1,16 +1,15 @@
-from grabber.settings import settings
-from grabber.redis_sender import set_value
+from settings import settings
+from redis_sender import set_value
 from logger import log
 from time import sleep
 from requests import get
 
-# settings = Settings()
 WORK = True
 
 iteration = 0
 
 
-@log(f"grabber.{__name__}", "grab data for trading items")
+@log(f"grabber.__main__", "grab data for trading items")
 def grab():
     data = {}
     try:
@@ -25,7 +24,7 @@ def grab():
         set_value(item)
 
 
-@log(f"grabber.{__name__}", f'start program')
+@log(f"grabber.__main__", f'start program')
 def start():
     while WORK:
         grab()

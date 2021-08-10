@@ -1,7 +1,7 @@
 from logger import log
 
-from ..services.trade import TradeService
-from ..services.base import services
+from services.trade import TradeService
+from services.base import services
 
 from discord.ext import commands
 from discord.member import Member

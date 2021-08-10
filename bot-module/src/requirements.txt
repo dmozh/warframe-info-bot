@@ -1,0 +1,5 @@
+discord
+redis
+pydantic
+python-dotenv
+requests

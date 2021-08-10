@@ -1,13 +1,11 @@
 from discord import Embed
 
-from ..settings import settings
+from settings import settings
 from .base import BaseService, Services
 
 from discord.ext.commands import Context
 from discord.message import Message
 
-from itertools import chain
-from json import loads
 from requests import get, Response
 from datetime import datetime, timedelta
 from enum import Enum
